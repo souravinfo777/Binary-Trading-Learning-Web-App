@@ -7,6 +7,8 @@ import { MathRiskView } from "./components/MathRiskView";
 import { PlaybookView } from "./components/PlaybookView";
 import { MentorChatDrawer } from "./components/MentorChatDrawer";
 import { AppLogo } from "./components/AppLogo";
+import { LogoShowcaseModal } from "./components/LogoShowcaseModal";
+import { LogoVariant } from "./components/LearnBinaryLogo";
 import { AllInOneSearchBar } from "./components/AllInOneSearchBar";
 import { ThemeSettingsModal } from "./components/ThemeSettingsModal";
 import {
@@ -109,6 +111,26 @@ function MainAppContent() {
     getInitialBlackTheme()
   );
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+
+  // 3 LEARN BINARY Capital Logos Modal & Active Variant State
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
+  const [activeLogoVariant, setActiveLogoVariant] = useState<LogoVariant>(() => {
+    try {
+      const saved = localStorage.getItem("learn_binary_active_logo") as LogoVariant;
+      if (saved && ["lb_apex", "lb_shield", "lb_minimal"].includes(saved)) {
+        return saved;
+      }
+    } catch {}
+    return "lb_apex";
+  });
+
+  const handleSelectLogoVariant = (variant: LogoVariant) => {
+    setActiveLogoVariant(variant);
+    try {
+      localStorage.setItem("learn_binary_active_logo", variant);
+      window.dispatchEvent(new Event("learn_binary_logo_changed"));
+    } catch {}
+  };
 
   useEffect(() => {
     applyThemeToDocument(activeTheme);
@@ -259,25 +281,53 @@ function MainAppContent() {
         <div className={`mx-auto flex flex-col gap-2 transition-all duration-200 ${isFullWidth ? "w-full max-w-[1920px]" : "max-w-7xl"}`}>
           {/* Top Row: Brand Logo, Desktop Search Bar, and Unified Action Controls */}
           <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Left: Brand Logo & Title */}
-            <div className="flex items-center gap-2 min-w-0">
-              <AppLogo size="sm" className="sm:hidden" />
-              <AppLogo size="md" className="hidden sm:flex" />
-              <div className="min-w-0">
+            {/* Left: Brand Logo & Title (Clean Logo-only on mobile, full branding on desktop) */}
+            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsLogoModalOpen(true)}
+                className="group flex items-center gap-1.5 focus:outline-none"
+                title={isBn ? "৩টি লোগো ডিজাইন দেখুন ও সিলেক্ট করুন" : "Click to view & select from 3 LEARN BINARY logos"}
+              >
+                <AppLogo size="sm" className="sm:hidden" variant={activeLogoVariant} />
+                <AppLogo size="md" className="hidden sm:flex" variant={activeLogoVariant} />
+              </button>
+
+              {/* Mobile "3 LOGOS" quick trigger button */}
+              <button
+                type="button"
+                onClick={() => setIsLogoModalOpen(true)}
+                className="sm:hidden flex items-center gap-1 px-1.5 py-1 rounded-md bg-cyan-950/80 hover:bg-cyan-900/90 border border-cyan-500/40 text-cyan-300 text-[9px] font-mono font-bold transition-all shadow-sm"
+                title="3 Logos"
+              >
+                <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                <span>3 LOGOS</span>
+              </button>
+
+              <div className="hidden sm:block min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h1 className="text-xs sm:text-base lg:text-lg font-bold text-white tracking-tight leading-tight truncate">
-                    <span className="sm:hidden">{isBn ? "কোয়ান্ট ওটিসি মেন্টর" : "OTC Algo Mentor"}</span>
-                    <span className="hidden sm:inline">{t("appTitle")}</span>
+                  <h1 className="text-sm lg:text-base font-black text-white tracking-wider leading-tight truncate font-mono uppercase">
+                    <span>LEARN </span>
+                    <span className="text-cyan-400">BINARY</span>
                   </h1>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-bold bg-cyan-950/90 text-cyan-400 border border-cyan-500/30 shrink-0">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-950/90 text-cyan-400 border border-cyan-500/30 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     PRO
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsLogoModalOpen(true)}
+                    className="ml-1 flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-950/90 hover:bg-cyan-900/90 border border-cyan-500/50 text-cyan-300 text-[9.5px] font-mono font-bold transition-all shadow-sm"
+                    title="View 3 Capital Logos"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    <span>{isBn ? "৩টি লোগো" : "3 LOGOS"}</span>
+                  </button>
                 </div>
-                <p className="text-[11px] font-mono text-slate-400 hidden sm:block mt-0.5">
+                <p className="text-[11px] font-mono text-slate-400 mt-0.5 tracking-tight">
                   {isBn
-                    ? "প্রাতিষ্ঠানিক প্রাইস অ্যাকশন ও অ্যালগো মেন্টর"
-                    : "Institutional Price Action & Algorithmic Mentor"}
+                    ? "ইনস্টিটিউশনাল প্রাইস অ্যাকশন ও অ্যালগো একাডেমি"
+                    : "Institutional Price Action & Algorithmic Academy"}
                 </p>
               </div>
             </div>
@@ -775,6 +825,14 @@ function MainAppContent() {
         activeTheme={activeTheme}
         onSelectTheme={(theme) => setActiveTheme(theme)}
         isBn={isBn}
+      />
+
+      {/* 3 LEARN BINARY Capital Logos Showcase & Selector Modal */}
+      <LogoShowcaseModal
+        isOpen={isLogoModalOpen}
+        onClose={() => setIsLogoModalOpen(false)}
+        activeVariant={activeLogoVariant}
+        onSelectVariant={handleSelectLogoVariant}
       />
     </div>
   );

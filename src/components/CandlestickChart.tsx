@@ -149,7 +149,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
     const dpr = window.devicePixelRatio || 1;
     const width = containerWidth || containerRef.current.clientWidth || 800;
     const isMobile = width < 540;
-    const height = isMobile ? (showRSI ? 380 : 330) : 460;
+    const height = isMobile ? (showRSI ? 400 : 350) : 460;
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;

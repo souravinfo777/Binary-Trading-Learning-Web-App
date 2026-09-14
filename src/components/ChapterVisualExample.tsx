@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ChapterVisualModel } from "../data/chapterVisuals";
 import { useLanguage } from "../context/LanguageContext";
 import { CandleHoverInspector } from "./CandleHoverInspector";
@@ -35,6 +35,35 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
   const [hoveredCandleIdx, setHoveredCandleIdx] = useState<number | null>(null);
   const [activeStepTab, setActiveStepTab] = useState<number>(0);
   const chartWrapperRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(640);
+
+  useEffect(() => {
+    if (!chartWrapperRef.current) return;
+    const updateSize = () => {
+      if (chartWrapperRef.current) {
+        setContainerWidth(chartWrapperRef.current.clientWidth);
+      }
+    };
+    updateSize();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.contentRect.width > 0) {
+            setContainerWidth(Math.floor(entry.contentRect.width));
+          }
+        }
+      });
+      ro.observe(chartWrapperRef.current);
+    }
+
+    window.addEventListener("resize", updateSize);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", updateSize);
+    };
+  }, []);
 
   const minPrice = Math.min(
     ...visual.candles.map((c) => c.low),
@@ -50,12 +79,17 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
   const chartMax = maxPrice + pricePadding;
   const priceRange = chartMax - chartMin || 0.001;
 
-  const svgWidth = 640;
-  const svgHeight = 240;
-  const padLeft = 45;
-  const padRight = 75;
-  const padTop = 25;
-  const padBottom = 35;
+  // Responsive dynamic dimensions - avoids mobile downscaling & gives 2.5x more vertical room
+  const isMobile = containerWidth < 540;
+  const isSmallMobile = containerWidth < 380;
+
+  const svgWidth = Math.max(320, containerWidth || 640);
+  const svgHeight = isMobile ? (isSmallMobile ? 320 : 340) : 340;
+
+  const padLeft = isMobile ? 18 : 45;
+  const padRight = isMobile ? 54 : 75;
+  const padTop = isMobile ? 32 : 28;
+  const padBottom = isMobile ? 44 : 38;
   const plotWidth = svgWidth - padLeft - padRight;
   const plotHeight = svgHeight - padTop - padBottom;
 
@@ -64,6 +98,7 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
   };
 
   const candleSpacing = plotWidth / visual.candles.length;
+  const candleWidth = Math.min(isMobile ? 32 : 38, Math.max(16, candleSpacing * 0.58));
 
   const selectedCandle =
     visual.candles.find((c) => c.index === selectedCandleIdx) ||
@@ -135,11 +170,14 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
 
       {/* SVG Chart Stage */}
       <div ref={chartWrapperRef} className="relative w-full bg-[#05070D] p-1.5 sm:p-4 border-b border-[#1E293B]">
-        <div className="w-full overflow-x-auto no-scrollbar md:custom-scrollbar touch-pan-x relative">
+        <div className="w-full relative touch-pan-x">
           <svg
+            width={svgWidth}
+            height={svgHeight}
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
             onMouseLeave={() => setHoveredCandleIdx(null)}
-            className="w-full h-auto select-none block min-w-[340px] sm:min-w-0"
+            className="w-full block select-none"
+            style={{ minHeight: `${svgHeight}px` }}
           >
             {/* Background Grid Lines */}
             {[0.2, 0.4, 0.6, 0.8].map((ratio, idx) => {
@@ -157,10 +195,10 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                     strokeWidth="1"
                   />
                   <text
-                    x={svgWidth - padRight + 6}
+                    x={svgWidth - padRight + (isMobile ? 4 : 6)}
                     y={y + 3}
                     fill="#64748B"
-                    fontSize="9"
+                    fontSize={isMobile ? "9" : "9.5"}
                     fontFamily="monospace"
                   >
                     {price.toFixed(4)}
@@ -242,7 +280,6 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
               const candleColor = isBullish ? "#10B981" : "#F43F5E";
               const bodyTop = Math.min(yOpen, yClose);
               const bodyHeight = Math.max(3, Math.abs(yClose - yOpen));
-              const candleWidth = Math.min(36, candleSpacing * 0.65);
 
               return (
                 <g
@@ -277,7 +314,7 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                     x2={cx}
                     y2={yLow}
                     stroke={candleColor}
-                    strokeWidth={isSelected || isHovered ? "2.2" : "1.5"}
+                    strokeWidth={isSelected || isHovered ? "2.5" : (isMobile ? "2" : "1.8")}
                   />
 
                   {/* Candle Body */}
@@ -288,8 +325,8 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                     height={bodyHeight}
                     fill={candleColor}
                     stroke={isSelected || isHovered ? "#38BDF8" : candleColor}
-                    strokeWidth={isSelected || isHovered ? "2" : "1"}
-                    rx="1.5"
+                    strokeWidth={isSelected || isHovered ? "2.2" : "1.2"}
+                    rx="2"
                     className="filter drop-shadow-md"
                   />
 
@@ -305,10 +342,10 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                         opacity="0.75"
                       />
                       <rect
-                        x={cx - 30}
-                        y={isBullish ? yLow + 8 : yHigh - 22}
-                        width="60"
-                        height="16"
+                        x={cx - (isMobile ? 26 : 30)}
+                        y={isBullish ? yLow + 6 : yHigh - 22}
+                        width={isMobile ? 52 : 60}
+                        height={17}
                         rx="4"
                         fill="#000000"
                         stroke={isBullish ? "#10B981" : "#F43F5E"}
@@ -316,10 +353,10 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                       />
                       <text
                         x={cx}
-                        y={isBullish ? yLow + 20 : yHigh - 10}
+                        y={isBullish ? yLow + 18 : yHigh - 10}
                         textAnchor="middle"
                         fill="#FFFFFF"
-                        fontSize="9"
+                        fontSize={isMobile ? "8.5" : "9"}
                         fontWeight="bold"
                         fontFamily="monospace"
                       >
@@ -331,21 +368,21 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                   {/* 1-Minute Number & Timestamp Label below candle */}
                   <text
                     x={cx}
-                    y={svgHeight - 18}
+                    y={svgHeight - (isMobile ? 22 : 20)}
                     textAnchor="middle"
                     fill={isSelected || isHovered ? "#38BDF8" : "#94A3B8"}
-                    fontSize="9"
-                    fontWeight={isSelected || isHovered ? "bold" : "normal"}
+                    fontSize={isMobile ? "10" : "9.5"}
+                    fontWeight="bold"
                     fontFamily="monospace"
                   >
                     C#{candle.index}
                   </text>
                   <text
                     x={cx}
-                    y={svgHeight - 7}
+                    y={svgHeight - (isMobile ? 8 : 7)}
                     textAnchor="middle"
                     fill="#64748B"
-                    fontSize="8"
+                    fontSize={isMobile ? "9" : "8.5"}
                     fontFamily="monospace"
                   >
                     {candle.time}
@@ -370,17 +407,20 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                     : "#F59E0B";
 
                 const textLabel = isBn ? ann.labelBn : ann.labelEn;
-                const approxWidth = Math.min(svgWidth - padRight - padLeft - 20, Math.max(160, textLabel.length * 9.2 + 28));
+                const approxWidth = Math.min(
+                  plotWidth - 10,
+                  Math.max(120, textLabel.length * (isMobile ? 7.2 : 8.8) + 22)
+                );
                 // Position tag above zone top edge; if too close to SVG top, position just below top edge
-                const badgeY = zoneMinY > padTop + 22 ? zoneMinY - 20 : zoneMinY + 4;
+                const badgeY = zoneMinY > padTop + 24 ? zoneMinY - 21 : zoneMinY + 4;
 
                 return (
                   <g key={`zone-label-${idx}`} className="pointer-events-none select-none">
                     <rect
-                      x={padLeft + 8}
+                      x={padLeft + 6}
                       y={badgeY}
                       width={approxWidth}
-                      height={19}
+                      height={20}
                       rx="4"
                       fill="#000000"
                       stroke={colorHex}
@@ -388,10 +428,10 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                       fillOpacity="0.96"
                     />
                     <text
-                      x={padLeft + 16}
-                      y={badgeY + 13}
+                      x={padLeft + 12}
+                      y={badgeY + 14}
                       fill="#FFFFFF"
-                      fontSize="10"
+                      fontSize={isMobile ? "9.5" : "10"}
                       fontWeight="bold"
                       fontFamily="sans-serif"
                     >
@@ -412,15 +452,26 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                     : "#F59E0B";
 
                 const textLabel = isBn ? ann.labelBn : ann.labelEn;
-                const approxWidth = Math.min(svgWidth - padRight - padLeft - 20, Math.max(140, textLabel.length * 8.5 + 24));
+                const approxWidth = Math.min(
+                  plotWidth * 0.72,
+                  Math.max(110, textLabel.length * (isMobile ? 7.2 : 8.5) + 20)
+                );
+
+                // Alternating left/right placement prevents overlapping multiple lines!
+                const isRightSide = idx % 2 === 0;
+                const badgeX = isRightSide
+                  ? svgWidth - padRight - approxWidth - 6
+                  : padLeft + 6;
+
+                const badgeY = y - 22 > padTop ? y - 21 : y + 4;
 
                 return (
                   <g key={`line-label-${idx}`} className="pointer-events-none select-none">
                     <rect
-                      x={svgWidth - padRight - approxWidth - 10}
-                      y={y - 20 > padTop ? y - 20 : y + 4}
+                      x={badgeX}
+                      y={badgeY}
                       width={approxWidth}
-                      height={19}
+                      height={20}
                       rx="4"
                       fill="#000000"
                       stroke={colorHex}
@@ -428,11 +479,11 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                       fillOpacity="0.96"
                     />
                     <text
-                      x={svgWidth - padRight - approxWidth / 2 - 10}
-                      y={y - 20 > padTop ? y - 6 : y + 18}
+                      x={badgeX + approxWidth / 2}
+                      y={badgeY + 14}
                       textAnchor="middle"
                       fill="#FFFFFF"
-                      fontSize="9"
+                      fontSize={isMobile ? "9" : "9.5"}
                       fontWeight="bold"
                       fontFamily="sans-serif"
                     >
@@ -452,7 +503,9 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                 const cy = getY(activeCandle.close);
                 const isBull = activeCandle.close >= activeCandle.open;
                 const highY = getY(activeCandle.high);
-                const tipY = Math.max(padTop + 24, highY - 10);
+                const lowY = getY(activeCandle.low);
+                const placeAbove = highY - 32 > padTop;
+                const tipY = placeAbove ? highY - 14 : lowY + 30;
 
                 return (
                   <g className="pointer-events-none select-none">
@@ -481,46 +534,46 @@ export const ChapterVisualExample: React.FC<ChapterVisualExampleProps> = ({
                     {/* Y-Axis Price Tag */}
                     <rect
                       x={svgWidth - padRight + 2}
-                      y={cy - 8}
-                      width="50"
-                      height="16"
-                      rx="2"
+                      y={cy - 9}
+                      width={isMobile ? 50 : 54}
+                      height="18"
+                      rx="3"
                       fill="#0891B2"
                     />
                     <text
-                      x={svgWidth - padRight + 27}
+                      x={svgWidth - padRight + (isMobile ? 26 : 28)}
                       y={cy + 4}
                       textAnchor="middle"
                       fill="#FFFFFF"
-                      fontSize="9"
+                      fontSize={isMobile ? "8.5" : "9"}
                       fontWeight="bold"
                       fontFamily="monospace"
                     >
                       {activeCandle.close.toFixed(4)}
                     </text>
 
-                    {/* Floating Candle Tooltip Badge directly above active candle */}
+                    {/* Floating Candle Tooltip Badge directly above/below active candle */}
                     <g transform={`translate(${Math.max(padLeft + 60, Math.min(svgWidth - padRight - 60, cx))}, ${tipY})`}>
                       <rect
                         x="-58"
                         y="-22"
                         width="116"
-                        height="20"
+                        height="21"
                         rx="4"
                         fill="#050811"
                         stroke="#06B6D4"
                         strokeWidth="1.5"
                       />
                       <polygon
-                        points="-4,-2 4,-2 0,2"
+                        points={placeAbove ? "-4,-1 4,-1 0,3" : "-4,-22 4,-22 0,-26"}
                         fill="#06B6D4"
                       />
                       <text
                         x="0"
-                        y="-8"
+                        y="-7.5"
                         textAnchor="middle"
                         fill="#FFFFFF"
-                        fontSize="9.5"
+                        fontSize={isMobile ? "9" : "9.5"}
                         fontWeight="bold"
                         fontFamily="monospace"
                       >
